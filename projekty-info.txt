@@ -1,0 +1,29 @@
+1. misra ping pong alg:
+- odporny na zgubienie tokena, 
+- nieodporny na link failure (popsucie łącza w momencie wysyłania tokena); 
+- łącza fifo, ale niepewne (dojdzie jako fifo lub wcale); 
+- 2 tokeny - ping (określa upawnienie wejścia do SekcjiKrytycznej), pong (krąży za pingiem); 
+- celem każdego tokenu jest wykrycie utraty tego drugiego; 
+- max 1 token może sie zgubić w jednym obiegu;
+- slajdy - wiecej info o funkcjach
+
+
+2. "3PC":
+- 3 phase commit
+- uzgodnienie w rozproszeniu lub zatwierdzenie transakcji
+- 2PC jest blokujący, 3PC ma zabezpieczenia (timeouty)
+- koordynator i pozostali
+
+
+3. dijkstra mutual exclusion alg:
+- wyróżniony proces P0
+- ustawianie wartości stanu +1 przy wychodzeniu (tylko P0 to zwiększa), wtedy następnik widzi zmianę jeśli numer jest RÓŻNY (nie większy) od jego numeru to może wejść
+- powrót do rónowagi po awarii (gdzie wszyscy mają losowe wartości stanu) - slajd 6, 7
+- założenie: węzły się nie psują
+
+
+DLA WSZYSTKICH MA BYĆ
+- komunikacja sieciowa (MPI, aktorzy w scali*, itp), żeby dało się uruchomić na wielu kompach
+- dobra prezentacja w konsoli lub graficzna
+
+* parametryzowane, żeby mozna było elastycznie manipulować liczbą aktorów

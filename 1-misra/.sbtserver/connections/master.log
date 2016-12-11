@@ -1,0 +1,13 @@
+New log file opened at Sun Dec 11 10:42:22 CET 2016 by 4095@comp
+Taking next connection to: 36738
+New client attempting to connect on port: 58456-36738
+  Address = /127.0.1.1:36738
+This client on port 58456 has uuid e1a2835f-33c4-47d3-99e5-6690193c83dc configName activator humanReadableName Activator protocolVersion 3 featureTags Vector()
+Connected Clients: activator-e1a2835f-33c4-47d3-99e5-6690193c83dc
+Taking next connection to: 36738
+Checking to see if clients are empty...
+No non-daemon clients connected after 3 min. Shutting down.
+Server socket thread exiting.
+0 clients open, will close them...
+All client sockets have been closed.
+Closing the 4095@comp logs at Sun Dec 11 10:45:23 CET 2016, goodbye.
