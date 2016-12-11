@@ -8,5 +8,5 @@ import akka.actor.ActorSelection
 //final case class JobFailed(reason: String)
 final case class Ping(value: Int)
 final case class Pong(value: Int)
-final case class NextNode(address: ActorSelection) // address of actor next in the ring
+final case class Startup(id: Int, nextNode: ActorSelection) // address of actor next in the ring
 //#messages

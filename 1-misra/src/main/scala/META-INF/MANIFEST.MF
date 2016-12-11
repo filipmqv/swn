@@ -7,5 +7,5 @@ Class-Path: reactive-streams.jar config.jar akka-protobuf_2.11-2.4.11.
  .jar akka-cluster-tools_2.11-2.4.11.jar ssl-config-akka_2.11.jar akka
  -remote_2.11-2.4.11.jar scala-java8-compat_2.11.jar scala-parser-comb
  inators_2.11-1.0.4.jar
-Main-Class: misra.StatsSample
+Main-Class: misra.MainApp
 
