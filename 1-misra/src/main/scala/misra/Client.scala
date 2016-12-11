@@ -1,9 +1,13 @@
 package misra
 
 import akka.actor.{Actor, ActorSystem, Address, Props, RelativeActorPath, RootActorPath}
-import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
-import akka.cluster.MemberStatus
+import akka.cluster.{Cluster, MemberStatus}
+import akka.util.Timeout
+
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 object Client {
   def main(args: Array[String]): Unit = {
@@ -44,6 +48,8 @@ class ClientActor(servicePath: String) extends Actor {
     //      println(result)
     //    case failed: JobFailed =>
     //      println(failed)
+    case Print(text) =>
+      println(sender() + " " + text)
     case state: CurrentClusterState =>
       nodes = state.members.collect {
         case m if m.hasRole("compute") && m.status == MemberStatus.Up => m.address
@@ -51,14 +57,23 @@ class ClientActor(servicePath: String) extends Actor {
     case MemberUp(m) if m.hasRole("compute") => {
       nodes += m.address
       if (nodes.size == 5) {
+        implicit val resolveTimeout = Timeout(5 seconds)
         for (i <- 0 to nodes.size) {
           val currentNodeAddr = nodes.toIndexedSeq(i%nodes.size)
           val nextNodeAddr = nodes.toIndexedSeq((i + 1)%nodes.size)
-          val currentNode = context.actorSelection(RootActorPath(currentNodeAddr) / servicePathElements)
-          val nextNode = context.actorSelection(RootActorPath(nextNodeAddr) / servicePathElements)
+
+          val currentNode = Await.result(context.actorSelection(RootActorPath(currentNodeAddr) / servicePathElements)
+            .resolveOne(), resolveTimeout.duration)
+          val nextNode = Await.result(context.actorSelection(RootActorPath(nextNodeAddr) / servicePathElements)
+            .resolveOne(), resolveTimeout.duration)
+
           currentNode ! Startup(i, nextNode)
         }
+        val firstNode = Await.result(context.actorSelection(RootActorPath(nodes.toIndexedSeq(0)) / servicePathElements)
+          .resolveOne(), resolveTimeout.duration)
+        firstNode ! Ping(0)
       }
+
     }
     case other: MemberEvent                         => nodes -= other.member.address
     case UnreachableMember(m)                       => nodes -= m.address

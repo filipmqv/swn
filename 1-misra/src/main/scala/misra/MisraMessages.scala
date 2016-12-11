@@ -1,12 +1,8 @@
 package misra
 
-import akka.actor.ActorSelection
+import akka.actor.ActorRef
 
-//#messages
-//final case class StatsJob(text: String)
-//final case class StatsResult(meanWordLength: Double)
-//final case class JobFailed(reason: String)
 final case class Ping(value: Int)
 final case class Pong(value: Int)
-final case class Startup(id: Int, nextNode: ActorSelection) // address of actor next in the ring
-//#messages
+final case class Startup(id: Int, nextNode: ActorRef) // address of actor next in the ring
+final case class Print(text: String)

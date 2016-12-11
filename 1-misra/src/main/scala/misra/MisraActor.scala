@@ -1,10 +1,10 @@
 package misra
 
-import akka.actor.{Actor, ActorRef, ActorSelection}
+import akka.actor.{Actor, ActorRef}
 
 class MisraActor extends Actor {
   var id: Int = -1
-  var nextNode: ActorSelection = _
+  var nextNode: ActorRef = _
   var client: ActorRef = _
 
   def receive = {
@@ -13,11 +13,10 @@ class MisraActor extends Actor {
       nextNode = address
       client = sender()
       println(i + " " + self.path.name + " got nextNode")
-      if (i == 0)
-        nextNode ! Ping(0)
     case Ping(value) =>
-      println(id + " " + self.path.name + " got ping from " + sender.path + " " + value)
+      client ! Print(s" got $value from $sender")
       Thread sleep 1000
       nextNode ! Ping(value + 1)
+      client ! Print(s" sent $value to $nextNode")
   }
 }
