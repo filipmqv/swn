@@ -105,7 +105,7 @@ class MisraActor extends Actor {
         become(gotPongDuringCriticalSection)
       }
     case Ping(value) =>
-      // TODO error - second ping came
+      // error - second ping came
       client ! Print(sender, 'errorping, value)
     case LoseMessage(which) =>
       loseMessage(which)
@@ -117,10 +117,10 @@ class MisraActor extends Actor {
       pongDelayerActor ! Wait(-value - 1)
       become(gotPong)
     case Ping(value) =>
-      // TODO error - second Ping came
+      // error - second Ping came
       client ! Print(sender, 'errorping, value)
     case Pong(value) =>
-      // TODO error - second Pong came
+      // error - second Pong came
       client ! Print(sender, 'errorpong, value)
     case LoseMessage(which) =>
       loseMessage(which)
@@ -139,7 +139,7 @@ class MisraActor extends Actor {
         become(gotPongDuringCriticalSection)
       }
     case Pong(value) =>
-      // TODO error - second Pong came
+      // error - second Pong came
       client ! Print(sender, 'errorpong, value)
     case LoseMessage(which) =>
       loseMessage(which)

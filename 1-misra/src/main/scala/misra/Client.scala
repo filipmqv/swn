@@ -31,6 +31,7 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
   var nodesNumbersMap = Map.empty[ActorRef, Int]
   var channels = Map.empty[Symbol, (ActorRef, Int)]
   var possessions = Map.empty[Symbol, (ActorRef, Int)]
+  var consoleInfoBar = ""
 
   override def preStart(): Unit = {
     cluster.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent])
@@ -49,25 +50,39 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
         case 'errorping => println("###" + nodesNumbersMap(sender) + " got ERROR PING " + value + " from " + nodesNumbersMap(actor))
         case 'errorpong => println("###" + nodesNumbersMap(sender) + " got ERROR PONG " + value + " from " + nodesNumbersMap(actor))
       }
-      print("\n\n\n\n\n\n\n\n\nPING: ")
+      print("\n\n\n\n\n\n\n\n\n      ")
       nodesNumbersMap foreach {
-        case (_, -1) => val a = 1
+        case (_, -1) => ()
+        case (k, v) =>
+          print(f"$v%3d   ")
+      }
+      print("\nPING: ")
+      nodesNumbersMap foreach {
+        case (_, -1) => ()
         case (k, v) =>
           if (possessions.contains('ping) && possessions('ping)._1 == k) print(Console.RED + f"${possessions('ping)._2}%3d" + Console.RESET) else print("___")
           if (channels.contains('ping) && channels('ping)._1 == k) print(Console.RED + f"${channels('ping)._2}%3d" + Console.RESET) else print(">>>")
       }
       print("\nPONG: ")
       nodesNumbersMap foreach {
-        case (_, -1) => val a = 1
+        case (_, -1) => ()
         case (k, v) =>
           if (possessions.contains('pong) && possessions('pong)._1 == k) print(Console.RED + f"${possessions('pong)._2}%3d" + Console.RESET) else print("___")
           if (channels.contains('pong) && channels('pong)._1 == k) print(Console.RED + f"${channels('pong)._2}%3d" + Console.RESET) else print(">>>")
       }
-      print("\n")
-//    case state: CurrentClusterState =>
-//      nodes = state.members.collect {
-//        case m if m.hasRole("compute") && m.status == MemberStatus.Up => m.address
-//      }
+      print(s"\n\n$consoleInfoBar \n")
+
+    case Text(text) =>
+      import context.dispatcher
+      text match {
+        case "" => consoleInfoBar = ""
+        case _ =>
+          consoleInfoBar = text
+          val requestor = self
+          context.system.scheduler.scheduleOnce(3000 milliseconds) {
+            requestor ! Text("")
+          }
+      }
 
     case MemberUp(m) if m.hasRole("compute") =>
       nodes += m.address
@@ -89,18 +104,21 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
 
         // send Ping to first node
         val firstNode = nodesNumbersMap.toIndexedSeq(0)._1
-        nodesNumbersMap += (self -> -1)
         possessions += ('ping -> ((self, 1)))
         self ! Print(firstNode, 'sendping, 1)
         firstNode ! Ping(1)
-        Thread sleep 3000
 
         // send Pong to first node
-        possessions += ('pong -> ((self, -1)))
-        self ! Print(firstNode, 'sendpong, -1)
-        firstNode ! Pong(-1)
+        val fn = firstNode
+        val s = self
+        import context.dispatcher
+        context.system.scheduler.scheduleOnce(3000 milliseconds) {
+          possessions += ('pong -> ((s, -1)))
+          s ! Print(fn, 'sendpong, -1)
+          fn ! Pong(-1)
+        }
 
-        // schedule losing ping or pong messages
+        // send actorRefs to actor which handles losing ping or pong messages
         pingPongLoserActor ! Nodes(nodesNumbersMap)
       }
 
@@ -115,18 +133,18 @@ class PingPongLoserActor extends Actor {
   def receive = {
     case Nodes(nodesMap) =>
       while (true) {
-        val c = scala.io.StdIn.readChar()
+        val c = scala.io.StdIn.readLine()
         // i - lose ping, o - lose pong
         c match {
-          case 'i' =>
+          case "i" =>
             val n = nodesMap.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodesMap.size))._1
             n ! LoseMessage('ping)
-            println(s"### node $n will lose PING")
-          case 'o' =>
+            sender ! Text(s"### channel before node ${nodesMap(n)} will lose PING")
+          case "o" =>
             val n = nodesMap.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodesMap.size))._1
             n ! LoseMessage('pong)
-            println(s"### node $n will lose PONG")
-          case _ => println("### COMMAND UNKNOWN")
+            sender ! Text(s"### channel before node ${nodesMap(n)} will lose PONG")
+          case _ => sender ! Text("### COMMAND UNKNOWN")
         }
       }
   }

@@ -13,3 +13,4 @@ final case class WaitDone(value: Int)
 
 final case class LoseMessage(which: Symbol)
 final case class Nodes(nodes: Map[ActorRef, Int])
+final case class Text(text: String)
