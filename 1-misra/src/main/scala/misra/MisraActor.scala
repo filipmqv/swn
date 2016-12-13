@@ -66,28 +66,28 @@ class MisraActor extends Actor {
       } else {
         client ! Print(sender, 'gotping, value)
         // if values are the same it means that pong is lost
-        val newValue = if (value == tokenLastValue) {
-          sendPong(-value - 1)
-          value + 1
+        if (value == tokenLastValue) {
+          client ! Print(sender, 'gotpong, -value-1) // recreating pong actually
+          criticalSectionActor ! Job(value)
+          become(gotPongDuringCriticalSection)
         } else {
-          value
+          criticalSectionActor ! Job(value)
+          become(inCriticalSection)
         }
-        criticalSectionActor ! Job(newValue)
-        become(inCriticalSection)
       }
     case Pong(value) =>
       if (losePong) {
         losePong = false
       } else {
         client ! Print(sender, 'gotpong, value)
-        val newValue = if (value == tokenLastValue) {
-          sendPing(-value + 1)
-          value - 1
+        if (value == tokenLastValue) {
+          client ! Print(sender, 'gotping, -value+1) // recreating ping actually
+          criticalSectionActor ! Job(-value)
+          become(gotPongDuringCriticalSection)
         } else {
-          value
+          pongDelayerActor ! Wait(value)
+          become(gotPong)
         }
-        pongDelayerActor ! Wait(newValue)
-        become(gotPong)
       }
     case LoseMessage(which) =>
       loseMessage(which)

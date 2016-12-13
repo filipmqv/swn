@@ -93,7 +93,7 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
         possessions += ('ping -> ((self, 1)))
         self ! Print(firstNode, 'sendping, 1)
         firstNode ! Ping(1)
-        Thread sleep 1500
+        Thread sleep 3000
 
         // send Pong to first node
         possessions += ('pong -> ((self, -1)))
