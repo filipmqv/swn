@@ -10,3 +10,6 @@ final case class Job(value: Int)
 final case class JobDone(value: Int)
 final case class Wait(value: Int)
 final case class WaitDone(value: Int)
+
+final case class LoseMessage(which: Symbol)
+final case class Nodes(nodes: Map[ActorRef, Int])

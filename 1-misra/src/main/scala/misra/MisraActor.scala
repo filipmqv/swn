@@ -3,29 +3,51 @@ package misra
 import akka.actor.{Actor, ActorRef, Props}
 
 import scala.concurrent.forkjoin.ThreadLocalRandom
+import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class MisraActor extends Actor {
   import context._
+
   var id: Int = -1
   var nextNode: ActorRef = _
   var client: ActorRef = _
   var tokenLastValue = 0
   val criticalSectionActor = context.actorOf(Props[CriticalSectionActor])
   val pongDelayerActor = context.actorOf(Props[PongDelayerActor])
+  // lose token during "before" receiving
+  var losePing = false
+  var losePong = false
 
   def sendPing(value: Int) = {
     tokenLastValue = value
     client ! Print(nextNode, 'sendping, value)
-    Thread sleep 500
-    nextNode ! Ping(value)
+
+    // simulate channel delay
+    val requestor = nextNode
+    val valueToSend = value
+    context.system.scheduler.scheduleOnce(500 milliseconds) {
+      requestor ! Ping(valueToSend)
+    }
   }
 
   def sendPong(value: Int) = {
     tokenLastValue = value
     client ! Print(nextNode, 'sendpong, value)
-    Thread sleep 500
-    nextNode ! Pong(value)
+
+    // simulate channel delay
+    val requestor = nextNode
+    val valueToSend = value
+    context.system.scheduler.scheduleOnce(500 milliseconds) {
+      requestor ! Pong(valueToSend)
+    }
+  }
+
+  def loseMessage(which: Symbol) = {
+    which match {
+      case 'ping => losePing = true
+      case 'pong => losePong = true
+    }
   }
 
   def receive = {
@@ -39,25 +61,36 @@ class MisraActor extends Actor {
 
   def pending: Receive = {
     case Ping(value) =>
-      client ! Print(sender, 'gotping, value)
-      val newValue = if (value == tokenLastValue) {
-        sendPong(-value - 1)
-        value + 1
+      if (losePing) {
+        losePing = false
       } else {
-        value
+        client ! Print(sender, 'gotping, value)
+        // if values are the same it means that pong is lost
+        val newValue = if (value == tokenLastValue) {
+          sendPong(-value - 1)
+          value + 1
+        } else {
+          value
+        }
+        criticalSectionActor ! Job(newValue)
+        become(inCriticalSection)
       }
-      criticalSectionActor ! Job(newValue)
-      become(inCriticalSection)
     case Pong(value) =>
-      client ! Print(sender, 'gotpong, value)
-      val newValue = if (value == tokenLastValue) {
-        sendPing(-value + 1)
-        value - 1
+      if (losePong) {
+        losePong = false
       } else {
-        value
+        client ! Print(sender, 'gotpong, value)
+        val newValue = if (value == tokenLastValue) {
+          sendPing(-value + 1)
+          value - 1
+        } else {
+          value
+        }
+        pongDelayerActor ! Wait(newValue)
+        become(gotPong)
       }
-      pongDelayerActor ! Wait(newValue)
-      become(gotPong)
+    case LoseMessage(which) =>
+      loseMessage(which)
   }
 
   def inCriticalSection: Receive = {
@@ -65,11 +98,17 @@ class MisraActor extends Actor {
       sendPing(value)
       become(pending)
     case Pong(value) =>
-      client ! Print(sender, 'gotpong, value)
-      become(gotPongDuringCriticalSection)
+      if (losePong) {
+        losePong = false
+      } else {
+        client ! Print(sender, 'gotpong, value)
+        become(gotPongDuringCriticalSection)
+      }
     case Ping(value) =>
       // TODO error - second ping came
       client ! Print(sender, 'errorping, value)
+    case LoseMessage(which) =>
+      loseMessage(which)
   }
 
   def gotPongDuringCriticalSection: Receive = {
@@ -83,6 +122,8 @@ class MisraActor extends Actor {
     case Pong(value) =>
       // TODO error - second Pong came
       client ! Print(sender, 'errorpong, value)
+    case LoseMessage(which) =>
+      loseMessage(which)
   }
 
   def gotPong: Receive = {
@@ -90,12 +131,18 @@ class MisraActor extends Actor {
       sendPong(value)
       become(pending)
     case Ping(value) =>
-      client ! Print(sender, 'gotping, value)
-      criticalSectionActor ! Job(value)
-      become(gotPongDuringCriticalSection)
+      if (losePing) {
+        losePing = false
+      } else {
+        client ! Print(sender, 'gotping, value)
+        criticalSectionActor ! Job(value)
+        become(gotPongDuringCriticalSection)
+      }
     case Pong(value) =>
       // TODO error - second Pong came
       client ! Print(sender, 'errorpong, value)
+    case LoseMessage(which) =>
+      loseMessage(which)
   }
 }
 
