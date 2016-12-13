@@ -1,8 +1,8 @@
 package misra
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Address, Props, RelativeActorPath, RootActorPath}
+import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
-import akka.cluster.{Cluster, MemberStatus}
 import akka.util.Timeout
 
 import scala.concurrent.Await
@@ -10,17 +10,15 @@ import scala.concurrent.duration._
 import scala.concurrent.forkjoin.ThreadLocalRandom
 import scala.language.postfixOps
 
-import akka.camel.{CamelMessage, Consumer}//{Message, CamelServiceManager, Consumer}
-
 object Client {
   def main(args: Array[String]): Unit = {
     // note that client is not a compute node, role not defined
     val system = ActorSystem("ClusterSystem")
-    system.actorOf(Props(classOf[ClientActor], "/user/statsService"), "client")
+    system.actorOf(Props(classOf[ClientActor], "/user/statsService", args(0).toInt), "client")
   }
 }
 
-class ClientActor(servicePath: String) extends Actor {
+class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
   val cluster = Cluster(context.system)
   val servicePathElements = servicePath match {
     case RelativeActorPath(elements) => elements
@@ -71,10 +69,9 @@ class ClientActor(servicePath: String) extends Actor {
 //        case m if m.hasRole("compute") && m.status == MemberStatus.Up => m.address
 //      }
 
-    case MemberUp(m) if m.hasRole("compute") => {
+    case MemberUp(m) if m.hasRole("compute") =>
       nodes += m.address
-      // TODO number of nodes to args + config from args (min number of nodes)
-      if (nodes.size == 7) {
+      if (nodes.size == clusterSize) {
         implicit val resolveTimeout = Timeout(5 seconds)
         // change adresses to ActorRefs
         nodes.zipWithIndex.foreach {
@@ -107,7 +104,6 @@ class ClientActor(servicePath: String) extends Actor {
         pingPongLoserActor ! Nodes(nodesNumbersMap)
       }
 
-    }
     case other: MemberEvent                         => nodes -= other.member.address
     case UnreachableMember(m)                       => nodes -= m.address
     case ReachableMember(m) if m.hasRole("compute") => nodes += m.address

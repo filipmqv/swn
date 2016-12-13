@@ -5,11 +5,11 @@ import com.typesafe.config.ConfigFactory
 
 object MainApp {
   def main(args: Array[String]): Unit = {
-    if (args.isEmpty) { // start 2 seed-nodes (workers) and 1 client (watcher-coordinator)
-      startup(Seq("2551", "2552"))
-      Client.main(Array.empty)
+    if (args.isEmpty) {
+      startup(Seq("0"))
     } else {
-      startup(args)
+      startup(Seq("2551", "2552")) // 2 seed-nodes
+      Client.main(args)
     }
   }
 
