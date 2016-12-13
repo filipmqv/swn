@@ -17,14 +17,14 @@ class MisraActor extends Actor {
   def sendPing(value: Int) = {
     tokenLastValue = value
     client ! Print(nextNode, 'sendping, value)
-    Thread sleep 300
+    Thread sleep 500
     nextNode ! Ping(value)
   }
 
   def sendPong(value: Int) = {
     tokenLastValue = value
     client ! Print(nextNode, 'sendpong, value)
-    Thread sleep 300
+    Thread sleep 500
     nextNode ! Pong(value)
   }
 
@@ -105,7 +105,7 @@ class CriticalSectionActor extends Actor {
   def receive = {
     case Job(value) =>
       // do sth in critical section
-      Thread sleep 1000
+      Thread sleep 1500
       sender ! JobDone(value)
   }
 }

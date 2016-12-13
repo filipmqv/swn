@@ -40,21 +40,21 @@ class ClientActor(servicePath: String) extends Actor {
   def receive = {
     case Print(actor, symbol, value) =>
       symbol match {
-        case 'sendping => possessions -= 'ping; channels += ('ping -> (sender, value))//; println(nodesNumbersMap(sender) + " sent PING " + value + " to " + nodesNumbersMap(actor))
-        case 'sendpong => possessions -= 'pong; channels += ('pong -> (sender, value))//println(nodesNumbersMap(sender) + " sent PONG " + value + " to " + nodesNumbersMap(actor))
-        case 'gotping => possessions += ('ping -> (sender, value)); channels -= 'ping//println(nodesNumbersMap(sender) + " got PING " + value + " from " + nodesNumbersMap(actor))
-        case 'gotpong => possessions += ('pong -> (sender, value)); channels -= 'pong//println(nodesNumbersMap(sender) + " got PONG " + value + " from " + nodesNumbersMap(actor))
+        case 'sendping => possessions -= 'ping; channels += ('ping -> (sender, value))
+        case 'sendpong => possessions -= 'pong; channels += ('pong -> (sender, value))
+        case 'gotping => possessions += ('ping -> (sender, value)); channels -= 'ping
+        case 'gotpong => possessions += ('pong -> (sender, value)); channels -= 'pong
         case 'errorping => println("###" + nodesNumbersMap(sender) + " got ERROR PING " + value + " from " + nodesNumbersMap(actor))
         case 'errorpong => println("###" + nodesNumbersMap(sender) + " got ERROR PONG " + value + " from " + nodesNumbersMap(actor))
       }
-      print("\n\n\n")
+      print("\n\n\n\n\n\n\n\n\nPING: ")
       nodesNumbersMap foreach {
         case (_, -1) => val a = 1
         case (k, v) =>
           if (possessions.contains('ping) && possessions('ping)._1 == k) print(Console.RED + f"${possessions('ping)._2}%2d" + Console.RESET) else print("__")
           if (channels.contains('ping) && channels('ping)._1 == k) print(Console.RED + f"${channels('ping)._2}%2d" + Console.RESET) else print(">>")
       }
-      print("\n")
+      print("\nPONG: ")
       nodesNumbersMap foreach {
         case (_, -1) => val a = 1
         case (k, v) =>
@@ -69,7 +69,7 @@ class ClientActor(servicePath: String) extends Actor {
     case MemberUp(m) if m.hasRole("compute") => {
       nodes += m.address
       // TODO number of nodes to args + config from args (min number of nodes)
-      if (nodes.size == 5) {
+      if (nodes.size == 7) {
         implicit val resolveTimeout = Timeout(5 seconds)
         nodes.zipWithIndex.foreach {
           case (node, i) => nodesNumbersMap +=
