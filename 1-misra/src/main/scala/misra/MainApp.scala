@@ -23,8 +23,7 @@ object MainApp {
 
       val system = ActorSystem("ClusterSystem", config)
 
-      //system.actorOf(Props[StatsWorker], name = "statsWorker")
-      system.actorOf(Props[MisraActor], name = "statsService")
+      system.actorOf(Props[MisraActor], name = "misraService")
     }
   }
 }

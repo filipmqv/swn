@@ -14,7 +14,7 @@ object Client {
   def main(args: Array[String]): Unit = {
     // note that client is not a compute node, role not defined
     val system = ActorSystem("ClusterSystem")
-    system.actorOf(Props(classOf[ClientActor], "/user/statsService", args(0).toInt), "client")
+    system.actorOf(Props(classOf[ClientActor], "/user/misraService", args(0).toInt), "client")
   }
 }
 

@@ -19,7 +19,7 @@ val project = Project(
     javaOptions in run ++= Seq(
       "-Xms128m", "-Xmx1024m", "-Djava.library.path=./target/native"),
     Keys.fork in run := true,
-    mainClass in (Compile, run) := Some("sample.cluster.simple.SimpleClusterApp")
+    mainClass in (Compile, run) := Some("misra.MainApp")
   )
 
 
