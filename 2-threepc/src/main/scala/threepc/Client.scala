@@ -31,8 +31,11 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
   var nodes = Set.empty[Address]
   var cohorts = Map.empty[ActorRef, Int]
   var coordinator: ActorRef = _
-  var channels = Map.empty[Symbol, (ActorRef, Int)]
-  var possessions = Map.empty[Symbol, (ActorRef, Int)]
+  var channels = Map.empty[(ActorRef, ActorRef), (Symbol, Int)] // (from, to), (messageType, commitId)
+  val messageTypesMap = Map('CommitRequest -> "CoR", 'Prepare -> "Pre", 'Commit -> "Com", 'Agree -> "Agr",
+    'Abort -> "Abo", 'Ack -> "Ack")
+  var states = Map.empty[ActorRef, (Symbol, Int)] // cohort, (state, commitId)
+  val statesMap = Map('pending -> "Q", 'waiting -> "W", 'prepared -> "P", 'commited -> "C", 'aborted -> "A")
   var consoleInfoBar = ""
 
   override def preStart(): Unit = {
@@ -43,48 +46,75 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
   }
 
   def receive = {
-    //    case Print(actor, symbol, value) =>
-    //      symbol match {
-    //        case 'sendping => possessions -= 'ping; channels += ('ping -> ((sender, value)))
-    //        case 'sendpong => possessions -= 'pong; channels += ('pong -> ((sender, value)))
-    //        case 'gotping => possessions += ('ping -> ((sender, value))); channels -= 'ping
-    //        case 'gotpong => possessions += ('pong -> ((sender, value))); channels -= 'pong
-    //        case 'errorping => println("###" + nodesNumbersMap(sender) + " got ERROR PING " + value + " from " + nodesNumbersMap(actor))
-    //        case 'errorpong => println("###" + nodesNumbersMap(sender) + " got ERROR PONG " + value + " from " + nodesNumbersMap(actor))
-    //      }
-    //      print("\n\n\n\n\n\n\n\n\n      ")
-    //      nodesNumbersMap foreach {
-    //        case (_, -1) => ()
-    //        case (k, v) =>
-    //          print(f"$v%3d   ")
-    //      }
-    //      print("\nPING: ")
-    //      nodesNumbersMap foreach {
-    //        case (_, -1) => ()
-    //        case (k, v) =>
-    //          if (possessions.contains('ping) && possessions('ping)._1 == k) print(Console.RED + f"${possessions('ping)._2}%3d" + Console.RESET) else print("___")
-    //          if (channels.contains('ping) && channels('ping)._1 == k) print(Console.RED + f"${channels('ping)._2}%3d" + Console.RESET) else print(">>>")
-    //      }
-    //      print("\nPONG: ")
-    //      nodesNumbersMap foreach {
-    //        case (_, -1) => ()
-    //        case (k, v) =>
-    //          if (possessions.contains('pong) && possessions('pong)._1 == k) print(Console.RED + f"${possessions('pong)._2}%3d" + Console.RESET) else print("___")
-    //          if (channels.contains('pong) && channels('pong)._1 == k) print(Console.RED + f"${channels('pong)._2}%3d" + Console.RESET) else print(">>>")
-    //      }
-    //      print(s"\n\n$consoleInfoBar \n")
-    //
-    //    case Text(text) =>
-    //      import context.dispatcher
-    //      text match {
-    //        case "" => consoleInfoBar = ""
-    //        case _ =>
-    //          consoleInfoBar = text
-    //          val requestor = self
-    //          context.system.scheduler.scheduleOnce(3000 milliseconds) {
-    //            requestor ! Text("")
-    //          }
-    //      }
+    case Print(actors, action, messageType, value, stateType) =>
+      action match {
+        case 'send =>
+          actors foreach { actor => channels += ((sender, actor) -> ((messageType, value))) }
+          states += (sender -> ((stateType, value)))
+        case 'got =>
+          actors foreach { actor => channels -= ((actor, sender)) }
+          states += (sender -> ((stateType, value)))
+//        case 'sendping => possessions -= 'ping; channels += ('ping -> ((sender, value)))
+//        case 'sendpong => possessions -= 'pong; channels += ('pong -> ((sender, value)))
+//        case 'gotping => possessions += ('ping -> ((sender, value))); channels -= 'ping
+//        case 'gotpong => possessions += ('pong -> ((sender, value))); channels -= 'pong
+//        case 'errorping => println("###" + nodesNumbersMap(sender) + " got ERROR PING " + value + " from " + nodesNumbersMap(actor))
+//        case 'errorpong => println("###" + nodesNumbersMap(sender) + " got ERROR PONG " + value + " from " + nodesNumbersMap(actor))
+      }
+      print("\n\n\n\n\n\n\n\n\n")
+      print("COORDINATOR:    ")
+      val (state, commitId) = states(coordinator)
+      println(statesMap(state) + " " + commitId)
+
+      cohorts foreach {
+        case (cohort, id) =>
+          List((coordinator, cohort), (cohort, coordinator)) foreach { // print both channels if there is message in channel
+            case (a, b) =>
+              channels.get((a,b)) match {
+                case Some((mType, cId)) =>
+                  print(Console.RED + messageTypesMap(mType) + " " + cId + "   " + Console.RESET)
+                case _ => print("       ")
+              }
+          }
+      }
+      println()
+      cohorts foreach {
+        case (cohort, id) =>
+          val (state, cId) = states(cohort)
+          print(statesMap(state) + " " + commitId)
+      }
+//      nodesNumbersMap foreach {
+//        case (_, -1) => ()
+//        case (k, v) =>
+//          print(f"$v%3d   ")
+//      }
+//      print("\nPING: ")
+//      nodesNumbersMap foreach {
+//        case (_, -1) => ()
+//        case (k, v) =>
+//          if (possessions.contains('ping) && possessions('ping)._1 == k) print(Console.RED + f"${possessions('ping)._2}%3d" + Console.RESET) else print("___")
+//          if (channels.contains('ping) && channels('ping)._1 == k) print(Console.RED + f"${channels('ping)._2}%3d" + Console.RESET) else print(">>>")
+//      }
+//      print("\nPONG: ")
+//      nodesNumbersMap foreach {
+//        case (_, -1) => ()
+//        case (k, v) =>
+//          if (possessions.contains('pong) && possessions('pong)._1 == k) print(Console.RED + f"${possessions('pong)._2}%3d" + Console.RESET) else print("___")
+//          if (channels.contains('pong) && channels('pong)._1 == k) print(Console.RED + f"${channels('pong)._2}%3d" + Console.RESET) else print(">>>")
+//      }
+      print(s"\n\n$consoleInfoBar \n")
+
+    case Text(text) =>
+      import context.dispatcher
+      text match {
+        case "" => consoleInfoBar = ""
+        case _ =>
+          consoleInfoBar = text
+          val requestor = self
+          context.system.scheduler.scheduleOnce(3000 milliseconds) {
+            requestor ! Text("")
+          }
+      }
 
     case MemberUp(m) if m.hasRole("coordinator") =>
       nodes += m.address
@@ -102,10 +132,13 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
       if (nodes.size == clusterSize) {
         // tell coordinator about cohorts
         coordinator ! StartupCoordinator(cohorts)
+        states += (coordinator -> (('pending, 0)))
         cohorts foreach {
-          case (cohort, id) => cohort ! StartupCohort(id)
+          case (cohort, id) =>
+            cohort ! StartupCohort(id)
+            states += (cohort -> (('pending, 0)))
         }
-        // TODO send actorRefs to actor which handles losing ping or pong messages
+        // TODO send actorRefs to actor which handles failures or timeouts
         //pingPongLoserActor ! Nodes(cohorts)
       }
 

@@ -18,7 +18,7 @@ final case class Ack(commitId: Int)
 
 final case class CommitFinished(commitId: Int)
 
-final case class Print(actor: ActorRef, what: Symbol, text: Int)
+final case class Print(actor: List[ActorRef], action: Symbol, messageType: Symbol, commitId: Int, stateType: Symbol)
 
 final case class LoseMessage(which: Symbol)
 final case class Nodes(nodes: Map[ActorRef, Int])
