@@ -12,7 +12,7 @@
 - 3 phase commit
 - uzgodnienie w rozproszeniu lub zatwierdzenie transakcji
 - 2PC jest blokujący, 3PC ma zabezpieczenia (timeouty)
-- koordynator i pozostali
+- koordynator ustalony z góry i pozostali
 
 
 3. dijkstra mutual exclusion alg:
