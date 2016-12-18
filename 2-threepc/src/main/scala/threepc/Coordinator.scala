@@ -1,6 +1,8 @@
 package threepc
 
 import akka.actor.{Actor, ActorRef}
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class Coordinator extends Actor {
   import context._ // for become method
@@ -13,11 +15,31 @@ class Coordinator extends Actor {
     Thread sleep milliseconds * 2
   }
 
+  def broadcast(msg: Msg) = {
+    // simulate channel delay
+    val requestors = cohorts
+    val msgToSend = msg
+    context.system.scheduler.scheduleOnce(1000 milliseconds) {
+      requestors foreach { _._1 ! msgToSend }
+    }
+  }
+
+  def broadcastAndPrint(msg: Msg, state: Symbol) = {
+    val (meessageType, commitId) = msg match {
+      case CommitRequest(i) => ('CommitRequest, i)
+      case Prepare(i) => ('Prepare, i)
+      case Commit(i) => ('Commit, i)
+      case Abort(i) => ('Abort, i)
+      case _ => ('Other, -1)
+    }
+    client ! Print(cohorts.keys.toList, 'send, meessageType, commitId, state)
+    broadcast(msg)
+  }
+
   def receive = {
     case StartupCoordinator(c) =>
       client = sender
       cohorts = c
-      println("coordinator start")
       self ! StartCommit(1)
       become(pending)
   }
@@ -26,9 +48,7 @@ class Coordinator extends Actor {
     case StartCommit(commitId) =>
       cohortsAgreedNumber = 0
       cohortsAckedNumber = 0
-      client ! Print(cohorts.keys.toList, 'send, 'CommitRequest, commitId, 'waiting)
-      sleep(1000)
-      cohorts foreach { case (cohort, id) => cohort ! CommitRequest(commitId) }
+      broadcastAndPrint(CommitRequest(commitId), 'waiting)
       become(waiting)
   }
 
@@ -38,16 +58,13 @@ class Coordinator extends Actor {
       client ! Print(List(sender), 'got, 'Agree, commitId, 'waiting)
       if (cohortsAgreedNumber == cohorts.size) { // all agreed
         sleep(1000)
-        client ! Print(cohorts.keys.toList, 'send, 'Prepare, commitId, 'prepared)
-        sleep(1000)
-        cohorts foreach { case (cohort, id) => cohort ! Prepare(commitId) }
+        broadcastAndPrint(Prepare(commitId), 'prepared)
         become(prepared)
       }
     case Abort(commitId) =>
       client ! Print(List(sender), 'got, 'Abort, commitId, 'waiting)
       sleep(1000)
-      client ! Print(cohorts.keys.toList, 'send, 'Abort, commitId, 'aborted)
-      cohorts foreach { case (cohort, id) => cohort ! Abort(commitId) }
+      broadcastAndPrint(Abort(commitId), 'aborted)
       sleep(1000)
       self ! CommitFinished(commitId)
       become(aborted)
@@ -59,9 +76,7 @@ class Coordinator extends Actor {
       client ! Print(List(sender), 'got, 'Ack, commitId, 'prepared)
       if (cohortsAckedNumber == cohorts.size) { // all sent ack
         sleep(1000)
-        client ! Print(cohorts.keys.toList, 'send, 'Commit, commitId, 'commited)
-        sleep(1000)
-        cohorts foreach { case (cohort, id) => cohort ! Commit(commitId) }
+        broadcastAndPrint(Commit(commitId), 'commited)
         sleep(1000)
         self ! CommitFinished(commitId)
         become(commited)
@@ -71,12 +86,16 @@ class Coordinator extends Actor {
   def commited: Receive = {
     case CommitFinished(commitId) =>
       println("finished")
+      sleep(2000)
+      self ! StartCommit(commitId + 1)
       become(pending)
   }
 
   def aborted: Receive = {
     case CommitFinished(commitId) =>
       println("aborted")
+      sleep(2000)
+      self ! StartCommit(commitId + 1)
       become(pending)
   }
 }

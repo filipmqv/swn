@@ -135,15 +135,14 @@ class PingPongLoserActor extends Actor {
     case Nodes(nodesMap) =>
       while (true) {
         val c = scala.io.StdIn.readLine()
-        // i - lose ping, o - lose pong
         c match {
           case "i" =>
             val n = nodesMap.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodesMap.size))._1
-            n ! LoseMessage('ping)
+//            n ! LoseMessage('ping)
             sender ! Text(s"### channel before node ${nodesMap(n)} will lose PING")
           case "o" =>
             val n = nodesMap.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodesMap.size))._1
-            n ! LoseMessage('pong)
+//            n ! LoseMessage('pong)
             sender ! Text(s"### channel before node ${nodesMap(n)} will lose PONG")
           case _ => sender ! Text("### COMMAND UNKNOWN")
         }
