@@ -34,6 +34,8 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
   var channels = Map.empty[(ActorRef, ActorRef), (Symbol, Int)] // (from, to), (messageType, commitId)
   val messageTypesMap = Map('CommitRequest -> "CoR", 'Prepare -> "Pre", 'Commit -> "Com", 'Agree -> "Agr",
     'Abort -> "Abo", 'Ack -> "Ack")
+  val messageTypesColorsMap = Map('CommitRequest -> Console.YELLOW, 'Prepare -> Console.BLUE, 'Commit -> Console.GREEN,
+    'Agree -> Console.GREEN, 'Abort -> Console.RED, 'Ack -> Console.BLUE)
   var states = Map.empty[ActorRef, (Symbol, Int)] // cohort, (state, commitId)
   val statesMap = Map('pending -> "Q", 'waiting -> "W", 'prepared -> "P", 'commited -> "C", 'aborted -> "A")
   var consoleInfoBar = ""
@@ -54,54 +56,33 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
         case 'got =>
           actors foreach { actor => channels -= ((actor, sender)) }
           states += (sender -> ((stateType, value)))
-//        case 'sendping => possessions -= 'ping; channels += ('ping -> ((sender, value)))
-//        case 'sendpong => possessions -= 'pong; channels += ('pong -> ((sender, value)))
-//        case 'gotping => possessions += ('ping -> ((sender, value))); channels -= 'ping
-//        case 'gotpong => possessions += ('pong -> ((sender, value))); channels -= 'pong
-//        case 'errorping => println("###" + nodesNumbersMap(sender) + " got ERROR PING " + value + " from " + nodesNumbersMap(actor))
-//        case 'errorpong => println("###" + nodesNumbersMap(sender) + " got ERROR PONG " + value + " from " + nodesNumbersMap(actor))
       }
       print("\n\n\n\n\n\n\n\n\n")
       print("COORDINATOR:    ")
       val (state, commitId) = states(coordinator)
       println(statesMap(state) + " " + commitId)
-
+      1 to cohorts.size foreach { i => print("↓↓↓ ↑↑↑    ") }
+      println()
       cohorts foreach {
         case (cohort, id) =>
           List((coordinator, cohort), (cohort, coordinator)) foreach { // print both channels if there is message in channel
             case (a, b) =>
               channels.get((a,b)) match {
                 case Some((mType, cId)) =>
-                  print(Console.RED + messageTypesMap(mType) + " " + cId + "   " + Console.RESET)
-                case _ => print("       ")
+                  print(messageTypesColorsMap(mType) + messageTypesMap(mType) + " " + Console.RESET)
+                case _ => print("    ")
               }
           }
+          print("   ")
       }
+      println()
+      1 to cohorts.size foreach { i => print("↓↓↓ ↑↑↑    ") }
       println()
       cohorts foreach {
         case (cohort, id) =>
           val (state, cId) = states(cohort)
-          print(statesMap(state) + " " + commitId)
+          print(statesMap(state) + " " + f"$commitId%3d" + "      ")
       }
-//      nodesNumbersMap foreach {
-//        case (_, -1) => ()
-//        case (k, v) =>
-//          print(f"$v%3d   ")
-//      }
-//      print("\nPING: ")
-//      nodesNumbersMap foreach {
-//        case (_, -1) => ()
-//        case (k, v) =>
-//          if (possessions.contains('ping) && possessions('ping)._1 == k) print(Console.RED + f"${possessions('ping)._2}%3d" + Console.RESET) else print("___")
-//          if (channels.contains('ping) && channels('ping)._1 == k) print(Console.RED + f"${channels('ping)._2}%3d" + Console.RESET) else print(">>>")
-//      }
-//      print("\nPONG: ")
-//      nodesNumbersMap foreach {
-//        case (_, -1) => ()
-//        case (k, v) =>
-//          if (possessions.contains('pong) && possessions('pong)._1 == k) print(Console.RED + f"${possessions('pong)._2}%3d" + Console.RESET) else print("___")
-//          if (channels.contains('pong) && channels('pong)._1 == k) print(Console.RED + f"${channels('pong)._2}%3d" + Console.RESET) else print(">>>")
-//      }
       print(s"\n\n$consoleInfoBar \n")
 
     case Text(text) =>
