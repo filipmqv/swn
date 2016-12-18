@@ -22,6 +22,7 @@ final case class CommitFinished(commitId: Int) extends Msg
 
 final case class Print(actor: List[ActorRef], action: Symbol, messageType: Symbol, commitId: Int, stateType: Symbol)
 
-final case class Nodes(nodes: Map[ActorRef, Int])
+final case class Nodes(coordinator: ActorRef, cohorts: Map[ActorRef, Int])
 final case class DoFail()
+final case class TimeIsOut(commitId: Int)
 final case class Text(text: String)

@@ -1,6 +1,7 @@
 package threepc
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorRef, Cancellable}
+
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -19,6 +20,7 @@ class Coordinator extends Actor {
     // simulate channel delay
     val requestors = cohorts
     val msgToSend = msg
+    // TODO random delay
     context.system.scheduler.scheduleOnce(1000 milliseconds) {
       requestors foreach { _._1 ! msgToSend }
     }
@@ -36,6 +38,14 @@ class Coordinator extends Actor {
     broadcast(msg)
   }
 
+  def setTimeout(commitId: Int): Cancellable = {
+    val requestor = self
+    val msgToSend = TimeIsOut(commitId)
+    system.scheduler.scheduleOnce(10 seconds) {
+      requestor ! msgToSend
+    }
+  }
+
   def receive = {
     case StartupCoordinator(c) =>
       client = sender
@@ -49,38 +59,53 @@ class Coordinator extends Actor {
       cohortsAgreedNumber = 0
       cohortsAckedNumber = 0
       broadcastAndPrint(CommitRequest(commitId), 'waiting)
-      become(waiting)
+      val calcellable = setTimeout(commitId)
+      become(waiting(calcellable))
   }
 
-  def waiting: Receive = {
+  def waiting(cancelTimeout: Cancellable): Receive = {
     case Agree(commitId) =>
       cohortsAgreedNumber += 1
       client ! Print(List(sender), 'got, 'Agree, commitId, 'waiting)
       if (cohortsAgreedNumber == cohorts.size) { // all agreed
+        cancelTimeout.cancel()
         sleep(1000)
         broadcastAndPrint(Prepare(commitId), 'prepared)
-        become(prepared)
+        val calcellable = setTimeout(commitId)
+        become(prepared(calcellable))
       }
     case Abort(commitId) =>
+      cancelTimeout.cancel()
       client ! Print(List(sender), 'got, 'Abort, commitId, 'waiting)
       sleep(1000)
       broadcastAndPrint(Abort(commitId), 'aborted)
       sleep(1000)
       self ! CommitFinished(commitId)
       become(aborted)
+    case TimeIsOut(commitId) =>
+      broadcastAndPrint(Abort(commitId), 'aborted)
+      sleep(1000)
+      self ! CommitFinished(commitId)
+      become(aborted)
   }
 
-  def prepared: Receive = {
+  def prepared(cancelTimeout: Cancellable): Receive = {
     case Ack(commitId) =>
       cohortsAckedNumber += 1
       client ! Print(List(sender), 'got, 'Ack, commitId, 'prepared)
       if (cohortsAckedNumber == cohorts.size) { // all sent ack
+        cancelTimeout.cancel()
         sleep(1000)
         broadcastAndPrint(Commit(commitId), 'commited)
         sleep(1000)
         self ! CommitFinished(commitId)
         become(commited)
       }
+    case TimeIsOut(commitId) =>
+      broadcastAndPrint(Abort(commitId), 'aborted)
+      sleep(1000)
+      self ! CommitFinished(commitId)
+      become(aborted)
   }
 
   def commited: Receive = {

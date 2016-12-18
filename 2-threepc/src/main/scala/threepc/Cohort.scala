@@ -14,6 +14,12 @@ class Cohort extends Actor {
     Thread sleep milliseconds * 2
   }
 
+  def performFail() = {
+    client ! Print(List(sender), 'got, 'DoFail, -1, 'aborted)
+    self ! CommitFinished(currentCommitId)
+    become(aborted)
+  }
+
   def receive = {
     case StartupCohort(id) =>
       client = sender
@@ -28,6 +34,7 @@ class Cohort extends Actor {
       currentCommitId = commitId
       sleep(1000)
 
+      // TODO choice by user input, not random
       ThreadLocalRandom.current.nextDouble(0, 1) match {
         case i if i < 0.8 =>
           client ! Print(List(sender), 'send, 'Agree, commitId, 'waiting)
@@ -42,7 +49,8 @@ class Cohort extends Actor {
           self ! CommitFinished(commitId)
           become(aborted)
       }
-
+    case DoFail() =>
+      performFail()
   }
 
   def waiting: Receive = {
@@ -58,6 +66,8 @@ class Cohort extends Actor {
       sleep(1000)
       self ! CommitFinished(commitId)
       become(aborted)
+    case DoFail() =>
+      performFail()
   }
 
   def prepared: Receive = {
@@ -71,6 +81,10 @@ class Cohort extends Actor {
       sleep(1000)
       self ! CommitFinished(commitId)
       become(aborted)
+    case DoFail() =>
+      client ! Print(List(sender), 'got, 'DoFail, -1, 'commited)
+      self ! CommitFinished(currentCommitId)
+      become(commited)
   }
 
   def commited: Receive = {

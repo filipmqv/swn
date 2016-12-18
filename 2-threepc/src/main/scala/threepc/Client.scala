@@ -25,7 +25,7 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
     case _ => throw new IllegalArgumentException(
       "servicePath [%s] is not a valid relative actor path" format servicePath)
   }
-  val pingPongLoserActor = cluster.system.actorOf(Props[PingPongLoserActor])
+  val failureActor = cluster.system.actorOf(Props[FailureActor])
 
   var nodeIndex = 0
   var nodes = Set.empty[Address]
@@ -119,8 +119,7 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
             cohort ! StartupCohort(id)
             states += (cohort -> (('pending, 0)))
         }
-        // TODO send actorRefs to actor which handles failures or timeouts
-        //pingPongLoserActor ! Nodes(cohorts)
+        failureActor ! Nodes(coordinator, cohorts)
       }
 
     case other: MemberEvent                         => nodes -= other.member.address
@@ -130,22 +129,24 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
 
 }
 
-class PingPongLoserActor extends Actor {
+class FailureActor extends Actor {
   def receive = {
-    case Nodes(nodesMap) =>
+    case Nodes(coordinator, cohorts) =>
       while (true) {
         val c = scala.io.StdIn.readLine()
-        c match {
-          case "i" =>
-            val n = nodesMap.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodesMap.size))._1
-//            n ! LoseMessage('ping)
-            sender ! Text(s"### channel before node ${nodesMap(n)} will lose PING")
-          case "o" =>
-            val n = nodesMap.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodesMap.size))._1
-//            n ! LoseMessage('pong)
-            sender ! Text(s"### channel before node ${nodesMap(n)} will lose PONG")
-          case _ => sender ! Text("### COMMAND UNKNOWN")
-        }
+        val n = cohorts.toIndexedSeq(ThreadLocalRandom.current.nextInt(cohorts.size))._1
+        n ! DoFail()
+//        c match {
+//          case "i" =>
+//            val n = nodesMap.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodesMap.size))._1
+////            n ! LoseMessage('ping)
+//            sender ! Text(s"### channel before node ${nodesMap(n)} will lose PING")
+//          case "o" =>
+//            val n = nodesMap.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodesMap.size))._1
+////            n ! LoseMessage('pong)
+//            sender ! Text(s"### channel before node ${nodesMap(n)} will lose PONG")
+//          case _ => sender ! Text("### COMMAND UNKNOWN")
+//        }
       }
   }
 }
