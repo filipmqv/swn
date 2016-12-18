@@ -26,7 +26,6 @@ class Coordinator extends Actor {
     case StartCommit(commitId) =>
       cohortsAgreedNumber = 0
       cohortsAckedNumber = 0
-      // TODO println("sending CommitRequests ")
       client ! Print(cohorts.keys.toList, 'send, 'CommitRequest, commitId, 'waiting)
       sleep(1000)
       cohorts foreach { case (cohort, id) => cohort ! CommitRequest(commitId) }
@@ -42,11 +41,16 @@ class Coordinator extends Actor {
         client ! Print(cohorts.keys.toList, 'send, 'Prepare, commitId, 'prepared)
         sleep(1000)
         cohorts foreach { case (cohort, id) => cohort ! Prepare(commitId) }
-        //TODO println("all agreed")
         become(prepared)
       }
     case Abort(commitId) =>
-      ??? // TODO
+      client ! Print(List(sender), 'got, 'Abort, commitId, 'waiting)
+      sleep(1000)
+      client ! Print(cohorts.keys.toList, 'send, 'Abort, commitId, 'aborted)
+      cohorts foreach { case (cohort, id) => cohort ! Abort(commitId) }
+      sleep(1000)
+      self ! CommitFinished(commitId)
+      become(aborted)
   }
 
   def prepared: Receive = {
@@ -58,7 +62,6 @@ class Coordinator extends Actor {
         client ! Print(cohorts.keys.toList, 'send, 'Commit, commitId, 'commited)
         sleep(1000)
         cohorts foreach { case (cohort, id) => cohort ! Commit(commitId) }
-        // TODO println("all acked1")
         sleep(1000)
         self ! CommitFinished(commitId)
         become(commited)
@@ -68,6 +71,12 @@ class Coordinator extends Actor {
   def commited: Receive = {
     case CommitFinished(commitId) =>
       println("finished")
+      become(pending)
+  }
+
+  def aborted: Receive = {
+    case CommitFinished(commitId) =>
+      println("aborted")
       become(pending)
   }
 }
