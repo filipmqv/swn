@@ -7,7 +7,6 @@ import akka.util.Timeout
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import scala.concurrent.forkjoin.ThreadLocalRandom
 import scala.language.postfixOps
 
 object Client {
@@ -144,8 +143,6 @@ class FailureActor extends Actor {
         try {
           val c = scala.io.StdIn.readInt()
           val result: Option[(ActorRef, Int)] = allNodes.find(_._2 == c)
-          //val n = allNodes.toIndexedSeq(ThreadLocalRandom.current.nextInt(allNodes.size))._1
-          //n ! DoFail()
           result match {
             case Some((n, i)) =>
               n ! DoFail()
@@ -157,20 +154,6 @@ class FailureActor extends Actor {
           case e: Exception =>
             sender ! Text("UNKNOWN COMMAND")
         }
-
-//        sender ! Text("Failure of node " + allNodes(coordinator))
-//        // TODO fail cohort or coordinator
-//        c match {
-//          case "i" =>
-//            val n = nodesMap.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodesMap.size))._1
-////            n ! LoseMessage('ping)
-//            sender ! Text(s"### channel before node ${nodesMap(n)} will lose PING")
-//          case "o" =>
-//            val n = nodesMap.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodesMap.size))._1
-////            n ! LoseMessage('pong)
-//            sender ! Text(s"### channel before node ${nodesMap(n)} will lose PONG")
-//          case _ => sender ! Text("### COMMAND UNKNOWN")
-//        }
       }
   }
 }

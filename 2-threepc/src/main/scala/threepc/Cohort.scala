@@ -7,7 +7,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 class Cohort extends Actor {
-  import context._ // for become method
+  import context._ // for become and schedule method
   var client: ActorRef = _
   var myid = -1
   var currentCommitId: Int = 0
