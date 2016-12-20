@@ -1,6 +1,6 @@
 package threepc
 
-import akka.actor.{Actor, ActorRef, ActorSystem, Address, Props, RelativeActorPath, RootActorPath}
+import akka.actor.{Actor, ActorRef, ActorSystem, Address, Cancellable, Props, RelativeActorPath, RootActorPath}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
 import akka.util.Timeout
@@ -40,7 +40,9 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
   val statesMap = Map('pending -> "Q", 'waiting -> "W", 'prepared -> "P", 'commited -> "C", 'aborted -> "A")
   val statesColorsMap = Map('pending -> Console.WHITE, 'waiting -> Console.YELLOW, 'prepared -> Console.BLUE,
     'commited -> Console.GREEN, 'aborted -> Console.RED)
-  var consoleInfoBar = ""
+  val defaultConsoleInfoBarText = "Type >number [ENTER]< to cause node failure"
+  var consoleInfoBar = defaultConsoleInfoBarText
+  var consoleInfoBarSchedulerCancel: Cancellable = _
 
   override def preStart(): Unit = {
     cluster.subscribe(self, classOf[MemberEvent], classOf[ReachabilityEvent])
@@ -89,12 +91,15 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
 
     case Text(text) =>
       import context.dispatcher
+      if (consoleInfoBarSchedulerCancel != null) {
+        consoleInfoBarSchedulerCancel.cancel()
+      }
       text match {
-        case "" => consoleInfoBar = ""
+        case "" => consoleInfoBar = defaultConsoleInfoBarText
         case _ =>
           consoleInfoBar = text
           val requestor = self
-          context.system.scheduler.scheduleOnce(3000 milliseconds) {
+          consoleInfoBarSchedulerCancel = context.system.scheduler.scheduleOnce(3000 milliseconds) {
             requestor ! Text("")
           }
       }
@@ -134,11 +139,27 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
 class FailureActor extends Actor {
   def receive = {
     case Nodes(coordinator, cohorts) =>
+      val allNodes = cohorts + (coordinator -> 0)
       while (true) {
-        val c = scala.io.StdIn.readLine()
-        val n = cohorts.toIndexedSeq(ThreadLocalRandom.current.nextInt(cohorts.size))._1
-        n ! DoFail()
-        // TODO fail cohort or coordinator
+        try {
+          val c = scala.io.StdIn.readInt()
+          val result: Option[(ActorRef, Int)] = allNodes.find(_._2 == c)
+          //val n = allNodes.toIndexedSeq(ThreadLocalRandom.current.nextInt(allNodes.size))._1
+          //n ! DoFail()
+          result match {
+            case Some((n, i)) =>
+              n ! DoFail()
+              sender ! Text("Failure of node " + allNodes(n))
+            case _ =>
+              sender ! Text("UNKNOWN COMMAND")
+          }
+        } catch {
+          case e: Exception =>
+            sender ! Text("UNKNOWN COMMAND")
+        }
+
+//        sender ! Text("Failure of node " + allNodes(coordinator))
+//        // TODO fail cohort or coordinator
 //        c match {
 //          case "i" =>
 //            val n = nodesMap.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodesMap.size))._1

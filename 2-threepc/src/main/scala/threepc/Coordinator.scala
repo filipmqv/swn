@@ -19,7 +19,8 @@ class Coordinator extends Actor {
   }
 
   def performFail(state: Symbol = 'aborted) = {
-    client ! Print(List(sender), 'got, 'DoFail, -1, state)
+    client ! Print(List(sender), 'got, 'DoFail, currentCommitId, state)
+    sleep(10000)
     self ! CommitFinished(currentCommitId)
     state match {
       case 'aborted => become(aborted)
@@ -128,7 +129,6 @@ class Coordinator extends Actor {
 
   def commited: Receive = {
     case CommitFinished(commitId) =>
-      println("finished")
       sleep(2000)
       self ! StartCommit(commitId + 1)
       become(pending)
@@ -136,7 +136,6 @@ class Coordinator extends Actor {
 
   def aborted: Receive = {
     case CommitFinished(commitId) =>
-      println("aborted")
       sleep(2000)
       self ! StartCommit(commitId + 1)
       become(pending)
