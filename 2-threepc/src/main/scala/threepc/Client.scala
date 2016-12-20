@@ -33,11 +33,13 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
   var coordinator: ActorRef = _
   var channels = Map.empty[(ActorRef, ActorRef), (Symbol, Int)] // (from, to), (messageType, commitId)
   val messageTypesMap = Map('CommitRequest -> "CoR", 'Prepare -> "Pre", 'Commit -> "Com", 'Agree -> "Agr",
-    'Abort -> "Abo", 'Ack -> "Ack")
+    'Abort -> "Abo", 'Ack -> "Ack", 'Other -> " # ")
   val messageTypesColorsMap = Map('CommitRequest -> Console.YELLOW, 'Prepare -> Console.BLUE, 'Commit -> Console.GREEN,
-    'Agree -> Console.GREEN, 'Abort -> Console.RED, 'Ack -> Console.BLUE)
+    'Agree -> Console.GREEN, 'Abort -> Console.RED, 'Ack -> Console.BLUE, 'Other -> Console.WHITE)
   var states = Map.empty[ActorRef, (Symbol, Int)] // cohort, (state, commitId)
   val statesMap = Map('pending -> "Q", 'waiting -> "W", 'prepared -> "P", 'commited -> "C", 'aborted -> "A")
+  val statesColorsMap = Map('pending -> Console.WHITE, 'waiting -> Console.YELLOW, 'prepared -> Console.BLUE,
+    'commited -> Console.GREEN, 'aborted -> Console.RED)
   var consoleInfoBar = ""
 
   override def preStart(): Unit = {
@@ -60,8 +62,8 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
       print("\n\n\n\n\n\n\n\n\n")
       print("COORDINATOR:    ")
       val (state, commitId) = states(coordinator)
-      println(statesMap(state) + " " + commitId)
-      1 to cohorts.size foreach { i => print("↓↓↓ ↑↑↑    ") }
+      println(s"0 ${statesColorsMap(state)}${statesMap(state)}${Console.RESET} $commitId")
+      1 to cohorts.size foreach { _ => print("↓↓↓ ↑↑↑    ") }
       println()
       cohorts foreach {
         case (cohort, id) =>
@@ -76,12 +78,12 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
           print("   ")
       }
       println()
-      1 to cohorts.size foreach { i => print("↓↓↓ ↑↑↑    ") }
+      1 to cohorts.size foreach { _ => print("↓↓↓ ↑↑↑    ") }
       println()
       cohorts foreach {
         case (cohort, id) =>
           val (state, cId) = states(cohort)
-          print(statesMap(state) + " " + f"$commitId%3d" + "      ")
+          print(f"$id%2d ${statesColorsMap(state)}${statesMap(state)}${Console.RESET} $cId%2d    ")
       }
       print(s"\n\n$consoleInfoBar \n")
 
@@ -136,6 +138,7 @@ class FailureActor extends Actor {
         val c = scala.io.StdIn.readLine()
         val n = cohorts.toIndexedSeq(ThreadLocalRandom.current.nextInt(cohorts.size))._1
         n ! DoFail()
+        // TODO fail cohort or coordinator
 //        c match {
 //          case "i" =>
 //            val n = nodesMap.toIndexedSeq(ThreadLocalRandom.current.nextInt(nodesMap.size))._1

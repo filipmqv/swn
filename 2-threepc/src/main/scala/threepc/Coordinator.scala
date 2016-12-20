@@ -3,26 +3,38 @@ package threepc
 import akka.actor.{Actor, ActorRef, Cancellable}
 
 import scala.concurrent.duration._
+import scala.concurrent.forkjoin.ThreadLocalRandom
 import scala.language.postfixOps
 
 class Coordinator extends Actor {
-  import context._ // for become method
+  import context._ // for become and schedule methods
   var cohorts = Map.empty[ActorRef, Int]
   var client: ActorRef = _
   var cohortsAgreedNumber = 0
   var cohortsAckedNumber = 0
+  var currentCommitId = -1
 
   def sleep(milliseconds: Int): Unit = {
-    Thread sleep milliseconds * 2
+    Thread sleep milliseconds
+  }
+
+  def performFail(state: Symbol = 'aborted) = {
+    client ! Print(List(sender), 'got, 'DoFail, -1, state)
+    self ! CommitFinished(currentCommitId)
+    state match {
+      case 'aborted => become(aborted)
+      case _ => become(commited)
+    }
   }
 
   def broadcast(msg: Msg) = {
-    // simulate channel delay
+    // simulate random channel delay
     val requestors = cohorts
     val msgToSend = msg
-    // TODO random delay
-    context.system.scheduler.scheduleOnce(1000 milliseconds) {
-      requestors foreach { _._1 ! msgToSend }
+    requestors foreach { case (actor, id) =>
+      context.system.scheduler.scheduleOnce(ThreadLocalRandom.current.nextInt(500, 2000) milliseconds) {
+        actor ! msgToSend
+      }
     }
   }
 
@@ -38,13 +50,14 @@ class Coordinator extends Actor {
     broadcast(msg)
   }
 
-  def setTimeout(commitId: Int): Cancellable = {
+  def setTimeout(commitId: Int, delay: Int = 10): Cancellable = {
     val requestor = self
     val msgToSend = TimeIsOut(commitId)
-    system.scheduler.scheduleOnce(10 seconds) {
+    system.scheduler.scheduleOnce(delay seconds) {
       requestor ! msgToSend
     }
   }
+
 
   def receive = {
     case StartupCoordinator(c) =>
@@ -58,6 +71,7 @@ class Coordinator extends Actor {
     case StartCommit(commitId) =>
       cohortsAgreedNumber = 0
       cohortsAckedNumber = 0
+      currentCommitId = commitId
       broadcastAndPrint(CommitRequest(commitId), 'waiting)
       val calcellable = setTimeout(commitId)
       become(waiting(calcellable))
@@ -87,6 +101,8 @@ class Coordinator extends Actor {
       sleep(1000)
       self ! CommitFinished(commitId)
       become(aborted)
+    case DoFail() =>
+      performFail()
   }
 
   def prepared(cancelTimeout: Cancellable): Receive = {
@@ -106,6 +122,8 @@ class Coordinator extends Actor {
       sleep(1000)
       self ! CommitFinished(commitId)
       become(aborted)
+    case DoFail() =>
+      performFail('commited)
   }
 
   def commited: Receive = {
