@@ -1,0 +1,11 @@
+Manifest-Version: 1.0
+Class-Path: akka-protobuf_2.11-2.4.11.jar uncommons-maths.jar aeron-cl
+ ient-1.0.1.jar scala-java8-compat_2.11.jar akka-stream_2.11-2.4.11.ja
+ r scala-parser-combinators_2.11-1.0.4.jar akka-actor_2.11-2.4.11.jar 
+ akka-cluster-tools_2.11-2.4.11.jar ssl-config-akka_2.11.jar aeron-dri
+ ver-1.0.1.jar netty-3.10.6.Final.jar reactive-streams.jar akka-cluste
+ r_2.11-2.4.11.jar scala-library-2.11.8.jar akka-remote_2.11-2.4.11.ja
+ r ssl-config-core_2.11.jar Agrona-0.5.4.jar akka-cluster-metrics_2.11
+ -2.4.11.jar config.jar
+Main-Class: dijkstra.MainApp
+
