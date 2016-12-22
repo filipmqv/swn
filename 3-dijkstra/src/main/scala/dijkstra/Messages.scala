@@ -4,8 +4,11 @@ import akka.actor.ActorRef
 
 final case class Startup(id: Int, nextNode: ActorRef)
 
-// Coordinator sends:
-final case class StartCommit(commitId: Int)
+final case class State()
+final case class StateAnswer(value: Int)
+final case class Job(value: Int)
+final case class JobDone(value: Int)
+final case class Print(text: String)
 
 //final case class Print(actor: List[ActorRef], action: Symbol, messageType: Symbol, commitId: Int, stateType: Symbol)
 

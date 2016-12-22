@@ -50,7 +50,9 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
   }
 
   def receive = {
-    case Print(actors, action, messageType, value, stateType) =>
+    case Print(text) =>
+      println(text)
+//    case Print(actors, action, messageType, value, stateType) =>
 //      action match {
 //        case 'send =>
 //          actors foreach { actor => channels += ((sender, actor) -> ((messageType, value))) }
@@ -102,7 +104,7 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
           }
       }
 
-    case MemberUp(m) if m.hasRole("cohort") =>
+    case MemberUp(m) if m.hasRole("actor") =>
       nodes += m.address
       implicit val resolveTimeout = Timeout(5 seconds)
       nodeIndex += 1 // first node is node_0
@@ -166,9 +168,9 @@ class FailureActor extends Actor {
 //            case _ =>
 //              unknownCommand(sender)
 //          }
-//        } catch {
-//          case e: Exception =>
-//            unknownCommand(sender)
+        } catch {
+          case e: Exception =>
+            unknownCommand(sender)
         }
       }
   }

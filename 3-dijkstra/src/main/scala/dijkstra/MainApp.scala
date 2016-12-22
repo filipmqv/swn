@@ -6,35 +6,23 @@ import com.typesafe.config.ConfigFactory
 object MainApp {
   def main(args: Array[String]): Unit = {
     if (args.isEmpty) {
-      startup(Seq("0"), false)
+      startup(Seq("0"))
     } else {
-      startup(Seq("2551"), true) // 2 seed-nodes (1 coordinator, 1 cohort)
-      startup(Seq("2552"), false)
+      startup(Seq("2551", "2552")) // 2 seed-nodes (1 coordinator, 1 cohort)
       Client.main(args)
     }
   }
 
-  def startup(ports: Seq[String], coordinator: Boolean): Unit = {
+  def startup(ports: Seq[String]): Unit = {
     ports foreach { port =>
       // Override the configuration of the port when specified as program argument
-      val config =
-        if (coordinator) {
-          ConfigFactory.parseString(s"akka.remote.netty.tcp.port=" + port).withFallback(
-            ConfigFactory.parseString("akka.cluster.roles = [coordinator]")).
+      val config = ConfigFactory.parseString(s"akka.remote.netty.tcp.port=" + port).withFallback(
+            ConfigFactory.parseString("akka.cluster.roles = [actor]")).
             withFallback(ConfigFactory.load("dijkstra"))
-        } else {
-          ConfigFactory.parseString(s"akka.remote.netty.tcp.port=" + port).withFallback(
-            ConfigFactory.parseString("akka.cluster.roles = [cohort]")).
-            withFallback(ConfigFactory.load("dijkstra"))
-        }
 
       val system = ActorSystem("ClusterSystem", config)
 
-      if (coordinator) {
-        system.actorOf(Props[Coordinator], name = "dijkstraService")
-      } else {
-        system.actorOf(Props[Cohort], name = "dijkstraService")
-      }
+      system.actorOf(Props[DijkstraActor], name = "dijkstraService")
     }
   }
 }
