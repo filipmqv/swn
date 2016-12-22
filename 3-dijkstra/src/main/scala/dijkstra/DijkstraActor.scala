@@ -32,24 +32,24 @@ class DijkstraActor extends Actor {
         if (state == value && !isInCriticalSection) {
           criticalSectionActor ! Job(value)
           isInCriticalSection = true
-          client ! Print(s"myid $myid +  state $state + value $value +  start critical section 1")
+          client ! Print(state, 'in)
         }
       } else {
         if (state != value && !isInCriticalSection) {
           criticalSectionActor ! Job(value)
           isInCriticalSection = true
-          client ! Print(s"myid $myid +  state $state + value $value +  start critical section 2")
+          client ! Print(state, 'in)
         }
       }
     case JobDone(value) =>
       if (isDistinguished) {
         state += 1 // TODO modulo
         isInCriticalSection = false
-        client ! Print(s"myid $myid +  state $state + value $value +  finish critical section 1")
+        client ! Print(state, 'out)
       } else {
         state = value
         isInCriticalSection = false
-        client ! Print(s"myid $myid +  state $state + value $value +  finish critical section 1")
+        client ! Print(state, 'out)
       }
   }
 }

@@ -34,7 +34,7 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
 //    'Abort -> "Abo", 'Ack -> "Ack", 'Other -> " # ")
 //  val messageTypesColorsMap = Map('CommitRequest -> Console.YELLOW, 'Prepare -> Console.BLUE, 'Commit -> Console.GREEN,
 //    'Agree -> Console.GREEN, 'Abort -> Console.RED, 'Ack -> Console.BLUE, 'Other -> Console.WHITE)
-//  var states = Map.empty[ActorRef, (Symbol, Int)] // cohort, (state, commitId)
+  var states = Map.empty[ActorRef, (Symbol, Int)] // node, (in or out of critical section, state number)
 //  val statesMap = Map('pending -> "Q", 'waiting -> "W", 'prepared -> "P", 'commited -> "C", 'aborted -> "A")
 //  val statesColorsMap = Map('pending -> Console.WHITE, 'waiting -> Console.YELLOW, 'prepared -> Console.BLUE,
 //    'commited -> Console.GREEN, 'aborted -> Console.RED)
@@ -50,8 +50,30 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
   }
 
   def receive = {
-    case Print(text) =>
-      println(text)
+    case Print(state, action) =>
+      states += (sender -> ((action, state)))
+      print("\n\n\n\n\n\n\n\n\n")
+      dijkstraActors foreach {
+        case (actor, id) =>
+          print("id st    ")
+      }
+      println()
+      dijkstraActors foreach {
+        case (actor, id) =>
+          print(f"$id%2d ${states(actor)._2}%2d    ")
+      }
+      println()
+      dijkstraActors foreach {
+        case (actor, id) =>
+          states(actor)._1 match {
+            case 'in =>
+              print("******")
+            case _ =>
+              print("      ")
+          }
+          print("   ")
+      }
+      println()
 //    case Print(actors, action, messageType, value, stateType) =>
 //      action match {
 //        case 'send =>
@@ -116,6 +138,7 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
           val currentNode = dijkstraActors.toIndexedSeq(i)._1
           val nextNode = dijkstraActors.toIndexedSeq((i+1)%dijkstraActors.size)._1
           currentNode ! Startup(dijkstraActors(currentNode), nextNode)
+          states += (currentNode -> (('out, 0))) // for printing
         }
         // send actorRefs to actor which handles failures
         failureActor ! Nodes(dijkstraActors)
