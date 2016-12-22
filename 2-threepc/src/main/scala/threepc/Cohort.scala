@@ -11,6 +11,7 @@ class Cohort extends Actor {
   var client: ActorRef = _
   var myid = -1
   var currentCommitId: Int = 0
+  var chooseAgree = true
 
   def sleep(milliseconds: Int): Unit = {
     Thread sleep milliseconds
@@ -53,6 +54,10 @@ class Cohort extends Actor {
     }
   }
 
+  def chooseAbortNextTime() = {
+    chooseAgree = false
+  }
+
 
   def receive = {
     case StartupCohort(id) =>
@@ -67,20 +72,21 @@ class Cohort extends Actor {
       client ! Print(List(sender), 'got, 'CommitRequest, commitId, 'waiting)
       currentCommitId = commitId
       sleep(1000)
-      // TODO choice by user input, not random
-      ThreadLocalRandom.current.nextDouble(0, 1) match {
-        case i if i < 0.8 =>
-          sendAndPrint(sender, Agree(commitId), 'waiting)
-          val calcellable = setTimeout(commitId)
-          become(waiting(calcellable))
-        case _ =>
-          sendAndPrint(sender, Abort(commitId), 'aborted)
-          sleep(1000)
-          self ! CommitFinished(commitId)
-          become(aborted)
+      if (chooseAgree) {
+        sendAndPrint(sender, Agree(commitId), 'waiting)
+        val calcellable = setTimeout(commitId)
+        become(waiting(calcellable))
+      } else {
+        chooseAgree = true
+        sendAndPrint(sender, Abort(commitId), 'aborted)
+        sleep(1000)
+        self ! CommitFinished(commitId)
+        become(aborted)
       }
     case DoFail() =>
       performFail()
+    case AbortNextTime() =>
+      chooseAbortNextTime()
   }
 
   def waiting(cancelTimeout: Cancellable): Receive = {
@@ -105,6 +111,8 @@ class Cohort extends Actor {
     case DoFail() =>
       cancelTimeout.cancel()
       performFail()
+    case AbortNextTime() =>
+      chooseAbortNextTime()
   }
 
   def prepared(cancelTimeout: Cancellable): Receive = {
@@ -128,17 +136,23 @@ class Cohort extends Actor {
     case DoFail() =>
       cancelTimeout.cancel()
       performFail('commited)
+    case AbortNextTime() =>
+      chooseAbortNextTime()
   }
 
   def commited: Receive = {
     case CommitFinished(commitId) =>
       client ! Print(List(sender), 'got, 'Other, commitId, 'pending)
       become(pending)
+    case AbortNextTime() =>
+      chooseAbortNextTime()
   }
 
   def aborted: Receive = {
     case CommitFinished(commitId) =>
       client ! Print(List(sender), 'got, 'Other, commitId, 'pending)
       become(pending)
+    case AbortNextTime() =>
+      chooseAbortNextTime()
   }
 }

@@ -136,23 +136,49 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
 }
 
 class FailureActor extends Actor {
+  def findActorById(nodes: Map[ActorRef, Int], id: Int) = {
+    val result: Option[(ActorRef, Int)] = nodes.find(_._2 == id)
+    result match {
+      case Some((n, i)) =>
+        Some(n)
+      case _ =>
+        None
+    }
+  }
+
+  def unknownCommand(sendTo: ActorRef): Unit = {
+    sendTo ! Text("UNKNOWN COMMAND")
+  }
+
   def receive = {
     case Nodes(coordinator, cohorts) =>
       val allNodes = cohorts + (coordinator -> 0)
       while (true) {
         try {
-          val c = scala.io.StdIn.readInt()
-          val result: Option[(ActorRef, Int)] = allNodes.find(_._2 == c)
-          result match {
-            case Some((n, i)) =>
-              n ! DoFail()
-              sender ! Text("Failure of node " + allNodes(n))
+          val c = scala.io.StdIn.readLine().split(" ").toList
+          c.head match {
+            case "f" => // fail
+              findActorById(allNodes, c(1).toInt) match {
+                case Some(n: ActorRef) =>
+                  n ! DoFail()
+                  sender ! Text("Failure of node " + allNodes(n))
+                case _ =>
+                  unknownCommand(sender)
+              }
+            case "a" => // abort
+              findActorById(allNodes, c(1).toInt) match {
+                case Some(n: ActorRef) =>
+                  n ! AbortNextTime()
+                  sender ! Text("Node " + allNodes(n) + " will abort next time")
+                case _ =>
+                  unknownCommand(sender)
+              }
             case _ =>
-              sender ! Text("UNKNOWN COMMAND")
+              unknownCommand(sender)
           }
         } catch {
           case e: Exception =>
-            sender ! Text("UNKNOWN COMMAND")
+            unknownCommand(sender)
         }
       }
   }
