@@ -39,7 +39,7 @@ class ClientActor(servicePath: String, clusterSize: Int) extends Actor {
   val statesMap = Map('pending -> "Q", 'waiting -> "W", 'prepared -> "P", 'commited -> "C", 'aborted -> "A")
   val statesColorsMap = Map('pending -> Console.WHITE, 'waiting -> Console.YELLOW, 'prepared -> Console.BLUE,
     'commited -> Console.GREEN, 'aborted -> Console.RED)
-  val defaultConsoleInfoBarText = "Type >number [ENTER]< to cause node failure"
+  val defaultConsoleInfoBarText = "Type >action_letter id< [ENTER] to cause node (f)ailure or (a)bort"
   var consoleInfoBar = defaultConsoleInfoBarText
   var consoleInfoBarSchedulerCancel: Cancellable = _
 
